@@ -490,7 +490,7 @@ def plot(exp: Experiment, title=None,
         for each column. It doesn't plot color bars by default (None)
     barx_width : float or list of float, optional
     bary_width : float or list of float, optional
-        The thicknesses of the each bar. The default thickness usually looks good enough.
+        The thicknesses of each bar. The default thickness usually looks good enough.
     barx_colors : dict, matplotlib.colors.ListedColormap, optional
     bary_colors : dict, matplotlib.colors.ListedColormap, optional
         The colors for each unique values in the column of sample/feature metadata
