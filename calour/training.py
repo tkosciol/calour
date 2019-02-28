@@ -177,7 +177,7 @@ class SortedStratifiedKFold(StratifiedKFold):
     --------
     RepeatedSortedStratifiedKFold
     '''
-    def __init__(self, n_splits=3, shuffle=False, random_state=None):
+    def __init__(self, n_splits=3, shuffle=False, random_state=None, split_by=None):
         super().__init__(n_splits, shuffle, random_state)
 
     def _sort_partition(self, y):
@@ -327,7 +327,8 @@ def plot_scatter(result, title='', cmap=None, cor=stats.pearsonr, cv=False, ax=N
 
 
 def classify(exp: Experiment, fields, estimator, cv=RepeatedStratifiedKFold(3, 1),
-             predict='predict_proba', params=None):
+             predict='predict_proba', sample_weights=None,
+             yield_model=False, params=None):
     '''Evaluate classification during cross validation.
 
     Parameters
@@ -345,6 +346,11 @@ def classify(exp: Experiment, fields, estimator, cv=RepeatedStratifiedKFold(3, 1
         the function used to predict the validation sets. Some estimators
         have both functions to predict class or predict the probablity of each class
         for a sample. For example, see :class:`sklearn.ensemble.RandomForestClassifier`
+    sample_weights : array-like, shape = [n_samples] or None
+        an array-like object of sample weights used for
+        `sklearn.ensemble.RandomForestClassifier.fit` method.
+    return_model : bool
+        Yield fitted model along with the per-sample predictions.
     params : dict of string to sequence, or sequence of such
         For example, the output of
         :class:`sklearn.model_selection.ParameterGrid` or
@@ -363,7 +369,8 @@ def classify(exp: Experiment, fields, estimator, cv=RepeatedStratifiedKFold(3, 1
         - CV: which split of the cross validation
         - Y_PRED: the predicted class for the samples (if "predict")
         - mutliple columns with each contain probabilities predicted as each class (if "predict_proba")
-
+    fitted estimator object
+        Object of the same class as supplied `estimator`
     '''
     X = exp.data
     y = exp.sample_metadata[fields]
@@ -380,7 +387,7 @@ def classify(exp: Experiment, fields, estimator, cv=RepeatedStratifiedKFold(3, 1
             # deep copy the model by clone to avoid the impact from last iteration of fit.
             model = clone(estimator)
             model = model.set_params(**param)
-            model.fit(X[train], y[train])
+            model.fit(X[train], y[train], sample_weight=sample_weights)
             pred = getattr(model, predict)(X[test])
             if pred.ndim > 1:
                 df = pd.DataFrame(pred, columns=model.classes_)
@@ -390,7 +397,10 @@ def classify(exp: Experiment, fields, estimator, cv=RepeatedStratifiedKFold(3, 1
             df['SAMPLE'] = y[test].index.values
             df['CV'] = i
             dfs.append(df)
-        yield pd.concat(dfs, axis=0).reset_index(drop=True)
+        if yield_model:
+            yield pd.concat(dfs, axis=0).reset_index(drop=True), model
+        else:
+            yield pd.concat(dfs, axis=0).reset_index(drop=True)
 
 
 def plot_cm(result, normalize=False, title='confusion matrix', cmap=None, ax=None, classes=None, **kwargs):
