@@ -328,7 +328,7 @@ def plot_scatter(result, title='', cmap=None, cor=stats.pearsonr, cv=False, ax=N
 
 def classify(exp: Experiment, fields, estimator, cv=RepeatedStratifiedKFold(3, 1),
              predict='predict_proba', sample_weights=None,
-             yield_model=False, params=None):
+             return_model=None, params=None):
     '''Evaluate classification during cross validation.
 
     Parameters
@@ -349,8 +349,11 @@ def classify(exp: Experiment, fields, estimator, cv=RepeatedStratifiedKFold(3, 1
     sample_weights : array-like, shape = [n_samples] or None
         an array-like object of sample weights used for
         `sklearn.ensemble.RandomForestClassifier.fit` method.
-    return_model : bool
-        Yield fitted model along with the per-sample predictions.
+    return_model : {'all', 'best', None}
+        Define what information should be yielded by the function.
+        'all': Yield fitted model along with the per-sample predictions and a score for the model
+        'best': Return only the best model and per-sample predictions
+        None: Yield only per-sample predictions
     params : dict of string to sequence, or sequence of such
         For example, the output of
         :class:`sklearn.model_selection.ParameterGrid` or
@@ -397,10 +400,24 @@ def classify(exp: Experiment, fields, estimator, cv=RepeatedStratifiedKFold(3, 1
             df['SAMPLE'] = y[test].index.values
             df['CV'] = i
             dfs.append(df)
-        if yield_model:
-            yield pd.concat(dfs, axis=0).reset_index(drop=True), model
-        else:
+        # test model using a function
+        # use dictionary to store all of the models and their scores
+        # at the end perform the "best" calculation
+        if return_model is 'all':
+            yield pd.concat(dfs, axis=0).reset_index(drop=True), model.fit(X, y, sample_weight=sample_weights), scoring_function
+        elif return_model is 'best':
+            continue
+        elif return_model is None:
             yield pd.concat(dfs, axis=0).reset_index(drop=True)
+        else:
+            raise ValueError('return_model should be one of (all|best|None)')
+    if return_model is 'best':
+        return model
+
+
+        # 1. yield pd.DataFrame with CV results
+        # 2. yield a model trained on each set of params
+        # 3. return the best model
 
 
 def plot_cm(result, normalize=False, title='confusion matrix', cmap=None, ax=None, classes=None, **kwargs):
